@@ -1,7 +1,8 @@
-#include <iostream>
-#include <vulkan/vulkan.h>
+#include "RenderEngine.h"
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
+    auto application = new MyRenderer::RenderEngine(800, 600, "Vulkan Renderer");
+    application->Run();
+    delete application;
     return 0;
 }
