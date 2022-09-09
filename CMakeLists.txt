@@ -24,7 +24,7 @@ set(IMGUI_DIR dependencies/imgui)
 include_directories(${IMGUI_DIR} ${IMGUI_DIR}/backends ..)
 
 #Vulkan
-find_package(Vulkan REQUIRED)
+find_package(Vulkan REQUIRED COMPONENTS glslc)
 
 #glm
 add_subdirectory(dependencies/glm)
@@ -40,10 +40,39 @@ set(IMGUI_SRC
         ${IMGUI_DIR}/imgui_tables.cpp
         ${IMGUI_DIR}/imgui_widgets.cpp)
 
-file(GLOB SOURCE_FILES src/*.cpp headers/*.h)
+file(GLOB SOURCE_FILES src/main.cpp
+        src/RenderEngine.cpp
+        src/VulkanInstance.cpp
+        headers/RenderEngine.h
+        headers/VulkanInstance.h
+        headers/VulkanDebugMessenger.h
+        src/VulkanDebugMessenger.cpp)
 
 include_directories(headers)
+
+find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
+
+function(compile_shader target)
+    cmake_parse_arguments(PARSE_ARGV 1 arg "" "ENV;FORMAT" "SOURCES")
+    foreach(source ${arg_SOURCES})
+        add_custom_command(
+                OUTPUT ${source}.${arg_FORMAT}
+                DEPENDS ${source}
+                DEPFILE ${source}.d
+                COMMAND
+                ${glslc_executable}
+                $<$<BOOL:${arg_ENV}>:--target-env=${arg_ENV}>
+                $<$<BOOL:${arg_FORMAT}>:-mfmt=${arg_FORMAT}>
+                #-MD -MF ${source}.d
+                -o ${source}.${arg_FORMAT}
+                ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+        )
+        target_sources(${target} PRIVATE ${source}.${arg_FORMAT})
+    endforeach()
+endfunction()
 
 add_executable(VulkanRenderer ${SOURCE_FILES} ${HEADER_FILES} ${IMGUI_SRC})
 target_link_libraries(VulkanRenderer ${LIBRARIES})
 target_compile_definitions(VulkanRenderer PUBLIC -DImTextureID=ImU64)
+
+compile_shader(VulkanRenderer ENV vulkan1.1 FORMAT bin SOURCES shaders/triangle.vert shaders/triangle.frag)
